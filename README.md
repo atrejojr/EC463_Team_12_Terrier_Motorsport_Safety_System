@@ -23,5 +23,4 @@
 ## Optional features links
 - Team Jira
 - Team Confluence
-- Something else
 
