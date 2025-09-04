@@ -10,8 +10,8 @@
 
 <p>
   <p align="center">
-    <b> About Us: </b> <br>
-  <p align="left">
+    <b> About Us: </b>
+<br align="left">
 Our goal is to design and implement a digitized, Grounded-Low Voltage safety system for an F1-style electric vehicle that will shut the car down whenever one of the car’s sensors faults. We will complete circuit design, hardware implementation, signal processing, and more to create a fully functioning PCB system with both wired and wireless digital communications. The physical build of our system will utilize surface mount devices on custom made PCBs to minimize space, decrease weight, and improve energy-efficiency.</p>
 
 ## Team links
