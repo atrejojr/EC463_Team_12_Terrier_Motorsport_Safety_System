@@ -1,5 +1,4 @@
-# 02-Team Repo
-Template for team repo
+# Team 12 Terrier Motorsport Safety System
 
 <p align="center">
 <img src="./images/thisismyteam.png" width="50%">
