@@ -5,7 +5,7 @@
 </p>
 <p align="center">
 <b> Meet the Team: </b> <br>
-  Justin Nascimento, Hannah Faith Tandang, Alex Jones, Alberto Trejo, & "AJ" Chiaravalloti
+  Justin Nascimento, Hannah Faith Tandang, Alex Jones, Alberto Trejo, & AJ Chiaravalloti
 </p>
 
 <p>
