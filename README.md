@@ -4,9 +4,7 @@
 <img src="./images/thisismyteam.png" width="50%">
 </p>
 <p align="center">
-<b> Meet the team: </b>
-</p>
-<p align="center">
+<b> Meet the team: </b> <br>
   Justin Nascimento, Hannah Faith Tandang, Alex Jones, Alberto Trejo, & "AJ" Chiaravalloti
 </p>
 
