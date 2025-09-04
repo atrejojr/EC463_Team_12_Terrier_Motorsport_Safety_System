@@ -1,4 +1,5 @@
-# Team_12_Terrier_Motorsport_Safety_System
+<p align="center">
+# Team_12_Terrier_Motorsport_Safety_System </p>
 
 <p align="center">
 <img src="./images/thisismyteam.png" width="50%">
