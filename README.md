@@ -4,7 +4,7 @@
 <img src="./images/thisismyteam.png" width="50%">
 </p>
 <p align="center">
-This is my team
+This is our team
 </p>
 <p>Our goal is to design and implement a digitized Grounded-Low Voltage safety system for an F1-style electric vehicle. This project will be delivered through circuit design and hardware implementation, signal processing, and much more. The final product will be a fully functioning PCB system with both wired and wireless digital communications. The physical build of our system will utilize surface mount devices  on custom made PCBs to minimize space and decrease weight in our car for a more energy-efficient vehicle.</p>
 
