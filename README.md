@@ -26,6 +26,6 @@ Our goal is to design and implement a digitized, Grounded-Low Voltage safety sys
 
 
 ## Optional features links
-- Team Jira
+- [2025 FHE Rules v3](docs/2025_Formula_Hybrid+Electric_Rules_v3.pdf)
 - Team Confluence
 
