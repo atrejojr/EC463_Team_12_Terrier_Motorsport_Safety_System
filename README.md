@@ -1,7 +1,7 @@
 # Team_12_Terrier_Motorsport_Safety_System
 
 <p align="center">
-<img src="./images/Team 12.jpg" width="50%">
+<img src=".images/Team 12.jpg" width="50%">
 </p>
 <p align="center">
 <b> Meet the Team: </b> <br>
