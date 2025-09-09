@@ -20,7 +20,7 @@ Our goal is to design and implement a digitized, Grounded-Low Voltage safety sys
 ## Team links
 - [Team Google Drive](https://drive.google.com/drive/folders/11_EBm_pFPGrHdL1etmQhd2uqvKe7Tddw?usp=drive_link)
 
-## Course links
+## Miscellaneous
 - [ECE Senior Design Piazza Site](https://piazza.com/bu/fall2025/ec463/home)
 - [Blackboard](http://learn.bu.edu/)
 
