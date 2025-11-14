@@ -27,6 +27,6 @@ Our goal is to design and implement a digitized, Grounded-Low Voltage safety sys
 
 
 ## Optional features links
-- [2026 FHE Rules v5](docs/2026FormulaHybridRulesV5.pdf)
+- [2026 FHE Rules v5](docs/2026FormulaHybridRulesV7.pdf)
 - [Electrical Notion](https://www.notion.so/butm/Electrical-Workspace-Terrier-Motorsport-1b8a23c2fb0a475ebf1bae5830544479)
 
