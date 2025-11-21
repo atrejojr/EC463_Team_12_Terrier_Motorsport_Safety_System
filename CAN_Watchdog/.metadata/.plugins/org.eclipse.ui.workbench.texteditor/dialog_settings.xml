@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<item key="hasShownOverlayPopupBefore" value="true"/>
+	<item key="replaceBarOpen" value="false"/>
+	<list key="searchhistory">
+		<item value="hfdcan1"/>
+		<item value="MX_FDCAN1_Init"/>
+		<item value="IRQhandler"/>
+		<item value="wait"/>
+		<item value="USB_Wait_Ready"/>
+		<item value="bsp"/>
+	</list>
+</section>

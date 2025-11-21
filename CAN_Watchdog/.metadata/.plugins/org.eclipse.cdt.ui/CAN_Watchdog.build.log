@@ -1,0 +1,17 @@
+15:32:03 **** Incremental Build of configuration Debug for project CAN_Watchdog ****
+make -j20 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_NUCLEO_64 -DUSE_HAL_DRIVER -DSTM32G491xx -c -I../Core/Inc -IC:/Users/justn/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Inc -IC:/Users/justn/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -IC:/Users/justn/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/BSP/STM32G4xx_Nucleo -IC:/Users/justn/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/CMSIS/Device/ST/STM32G4xx/Include -IC:/Users/justn/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Drivers/CMSIS/Include -I../USB_Device/App -I../USB_Device/Target -IC:/Users/justn/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Core/Inc -IC:/Users/justn/STM32Cube/Repository/STM32Cube_FW_G4_V1.6.1/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+arm-none-eabi-gcc -o "CAN_Watchdog.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\justn\Desktop\Classes\Senior Fall\EC463\EC463_Nascimento_Justin\CAN_Watchdog\CAN_Watchdog\STM32G491RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CAN_Watchdog.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: CAN_Watchdog.elf
+ 
+arm-none-eabi-size  CAN_Watchdog.elf 
+arm-none-eabi-objdump -h -S CAN_Watchdog.elf  > "CAN_Watchdog.list"
+   text	   data	    bss	    dec	    hex	filename
+  33868	    104	   2760	  36732	   8f7c	CAN_Watchdog.elf
+Finished building: default.size.stdout
+ 
+Finished building: CAN_Watchdog.list
+ 
+
+15:32:05 Build Finished. 0 errors, 0 warnings. (took 1s.897ms)
+
