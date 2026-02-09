@@ -8,7 +8,7 @@
 #define RFM69_CS    4
 #define RFM69_INT   3
 #define RFM69_RST   2
-#define LED        13
+//#define LED        13
 
 // Reliable Datagram addresses
 #define MY_ADDRESS    2
@@ -30,7 +30,7 @@ bool lastFault[NUM_PINS] = {false, false, false, false, false};
 void setup() {
   Serial.begin(115200);
 
-  pinMode(LED, OUTPUT);
+  //pinMode(LED, OUTPUT);
   pinMode(RFM69_RST, OUTPUT);
   digitalWrite(RFM69_RST, LOW);
 
@@ -53,7 +53,7 @@ void setup() {
     Serial.println("setFrequency failed");
   }
 
-  rf69.setTxPower(20, true);  // RFM69HCW
+  rf69.setTxPower(10, true);  // RFM69HCW
 
   uint8_t key[] = {
     0x01, 0x02, 0x03, 0x04,
@@ -70,6 +70,10 @@ void setup() {
   for (uint8_t i = 0; i < NUM_PINS; i++) {
     pinMode(sensePins[i], INPUT);
   }
+
+  manager.setTimeout(300);   // ms
+  manager.setRetries(5);
+
 }
 
 void loop() {
@@ -96,10 +100,10 @@ void loop() {
       // Reliable send with ACK + retries
       if (manager.sendtoWait((uint8_t*)msg, strlen(msg), DEST_ADDRESS)) {
         Serial.println("ACK received");
-        Blink(LED, 40, 1);
+        //Blink(LED, 40, 1);
       } else {
         Serial.println("No ACK! RX may be offline");
-        Blink(LED, 100, 3);  // visible failure indication
+        //Blink(LED, 100, 3);  // visible failure indication
       }
 
       delay(20);
@@ -109,6 +113,7 @@ void loop() {
   delay(100); // 10 Hz polling
 }
 
+/*
 void Blink(byte pin, byte delay_ms, byte loops) {
   while (loops--) {
     digitalWrite(pin, HIGH);
@@ -117,3 +122,4 @@ void Blink(byte pin, byte delay_ms, byte loops) {
     delay(delay_ms);
   }
 }
+*/
