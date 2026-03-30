@@ -1,6 +1,12 @@
+// Hannah Tandang and Justin Nascimento 
+
 #include <SPI.h>
 #include <RH_RF69.h>
 #include <RHReliableDatagram.h>
+
+#include <Crypto.h>
+#include <SHA256.h>
+#include <Hash.h>
 
 /************ Radio Setup ***************/
 #define RF69_FREQ 915.0
@@ -8,7 +14,9 @@
 #define RFM69_CS    4
 #define RFM69_INT   3
 #define RFM69_RST   2
-//#define LED        13
+
+// Defines Radio Status Output
+#define Radio_Status 5
 
 // Reliable Datagram addresses
 #define MY_ADDRESS    2
@@ -27,12 +35,42 @@ const float THRESHOLD_V = 1.0f;
 // Track last status so we only send on change
 bool lastFault[NUM_PINS] = {false, false, false, false, false};
 
+// Signature Variable
+SHA256 hash;
+
+// Counter to prevent Replay (like a timestamp)
+uint32_t messageCounter = 0;
+
+// Set Encryption Key
+// Scarlett 2020 /n/n/n/n
+  uint8_t key[] = {
+    0x53, 0x63, 0x61, 0x72,
+    0x6C, 0x65, 0x74, 0x74,
+    0x32, 0x30, 0x32, 0x30,
+    0x0A, 0x0A, 0x0A, 0x0A
+  };
+
+// Set Signature Key - Separate key from RF AES key
+const byte HMAC_KEY[] = {
+  0x91, 0x22, 0xA7, 0x4C,
+  0x58, 0xD1, 0x33, 0x9F,
+  0x77, 0xE2, 0x19, 0xAB,
+  0xCD, 0x44, 0x10, 0x72
+};
+
 void setup() {
   Serial.begin(115200);
 
   //pinMode(LED, OUTPUT);
   pinMode(RFM69_RST, OUTPUT);
   digitalWrite(RFM69_RST, LOW);
+
+  // Set Radio Output
+  pinMode(Radio_Status, OUTPUT);
+
+  // TODO: REMOVE
+  // Set output to high temporarily
+  digitalWrite(Radio_Status, HIGH);
 
   Serial.println("RFM69 Reliable TX Test");
   Serial.println();
@@ -55,35 +93,38 @@ void setup() {
 
   rf69.setTxPower(10, true);  // RFM69HCW
 
-  uint8_t key[] = {
-    0x01, 0x02, 0x03, 0x04,
-    0x05, 0x06, 0x07, 0x08,
-    0x01, 0x02, 0x03, 0x04,
-    0x05, 0x06, 0x07, 0x08
-  };
+  // AES Encryption
   rf69.setEncryptionKey(key);
 
   Serial.print("RFM69 radio @ ");
   Serial.print((int)RF69_FREQ);
   Serial.println(" MHz");
 
-  for (uint8_t i = 0; i < NUM_PINS; i++) {
-    pinMode(sensePins[i], INPUT);
-  }
-
-  manager.setTimeout(300);   // ms
+  // Set timeout variables and retries for RHReliableDatagram
+  manager.setTimeout(300);  
   manager.setRetries(5);
+
+  // Initialize inputs as ADC pins
+  for (uint8_t i = 0; i < NUM_PINS; i++) {
+    pinMode(sensePins[i], INPUT_PULLUP);
+  }
 
 }
 
 void loop() {
   for (uint8_t i = 0; i < NUM_PINS; i++) {
+
+    // Read ADC Pins and determine if there is a fault
     int adc = analogRead(sensePins[i]);
     float volts = (adc * VREF) / 1023.0f;
     bool faultNow = (volts > THRESHOLD_V);
 
+    // If there is a fault, send a message
     if (faultNow != lastFault[i]) {
       lastFault[i] = faultNow;
+
+      // Increment number of messages sent
+      messageCounter++;
 
       char msg[32];
       snprintf(msg, sizeof(msg),
@@ -97,13 +138,42 @@ void loop() {
       Serial.print(volts, 3);
       Serial.println(" V)");
 
-      // Reliable send with ACK + retries
-      if (manager.sendtoWait((uint8_t*)msg, strlen(msg), DEST_ADDRESS)) {
+      // Create message to be sent
+      uint8_t packet[64];
+      uint8_t msg_len = strlen(msg);
+
+      // Add counter to messages(Similar to a timestamp - Big Endian)
+      packet[0] = (messageCounter >> 24) & 0xFF;
+      packet[1] = (messageCounter >> 16) & 0xFF;
+      packet[2] = (messageCounter >> 8) & 0xFF;
+      packet[3] = messageCounter & 0xFF;
+
+      // Append payload after counter
+      memcpy(packet + 4, msg, msg_len);
+
+      // Compute HMAC over [counter + message]
+      byte mac[32];
+
+      hash.resetHMAC(HMAC_KEY, sizeof(HMAC_KEY));
+      hash.update(packet, 4 + msg_len);
+      hash.finalize(mac, sizeof(mac));
+
+      // Append first 16 bytes of MAC to end of message
+      memcpy(packet + 4 + msg_len, mac, 16);
+
+      uint8_t total_len = 4 + msg_len + 16;
+
+      // Send the message
+      if (manager.sendtoWait(packet, total_len, DEST_ADDRESS)) {
+
+        // If ACK Received, set status signal to high
+        digitalWrite(Radio_Status, HIGH);
         Serial.println("ACK received");
-        //Blink(LED, 40, 1);
       } else {
+
+        // If ACK Not received, set status signal to low
+        digitalWrite(Radio_Status, LOW);
         Serial.println("No ACK! RX may be offline");
-        //Blink(LED, 100, 3);  // visible failure indication
       }
 
       delay(20);
@@ -113,13 +183,3 @@ void loop() {
   delay(100); // 10 Hz polling
 }
 
-/*
-void Blink(byte pin, byte delay_ms, byte loops) {
-  while (loops--) {
-    digitalWrite(pin, HIGH);
-    delay(delay_ms);
-    digitalWrite(pin, LOW);
-    delay(delay_ms);
-  }
-}
-*/
