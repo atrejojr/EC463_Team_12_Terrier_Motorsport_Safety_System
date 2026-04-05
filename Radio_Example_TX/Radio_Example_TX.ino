@@ -15,6 +15,13 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 // Use analog pins so we can compare to 1.0V
 const uint8_t NUM_PINS = 5;
 const uint8_t sensePins[NUM_PINS] = {A0, A1, A2, A3, A4};
+const char* signalNames[NUM_PINS] = {
+  "VSB_STATUS",    // A0
+  "CANWD_STATUS",  // A1
+  "RADIO_STATUS",  // A2
+  "IMD_STATUS",    // A3
+  "AMS_STATUS"     // A4
+};
 
 // Nano uses DEFAULT analog reference = 5.0V (unless you change it)
 const float VREF = 5.0f;
@@ -77,9 +84,9 @@ void loop() {
       lastFault[i] = faultNow;
 
       // Build message: "Pin # faulted" or "Pin # okay"
-      char msg[32];
+      char msg[64];
       // i+1 gives Pin 1..5 (change to i if you want 0..4)
-      snprintf(msg, sizeof(msg), "Pin %u %s", (unsigned)(i + 1),
+      snprintf(msg, sizeof(msg), "%s %s", signalNames[i],
                faultNow ? "faulted" : "okay");
 
       Serial.print("Sending: ");
