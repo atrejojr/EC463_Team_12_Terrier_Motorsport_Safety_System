@@ -25,7 +25,7 @@ const char* signalNames[NUM_PINS] = {
 
 // Nano uses DEFAULT analog reference = 5.0V (unless you change it)
 const float VREF = 5.0f;
-const float THRESHOLD_V = 1.0f; // "fault" if above 1V
+const float THRESHOLD_V = 1.5f; // "fault" if above 1V
 
 // Track last status so we only send on change
 bool lastFault[NUM_PINS] = {false, false, false, false, false};
