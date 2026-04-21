@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RFM69 Telemetry Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #050506;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', Courier, monospace;
+      color: #ccc;
+    }
+
+    .cluster {
+      background: #080809;
+      border: 0.5px solid #1e1e22;
+      border-radius: 20px;
+      padding: 1.75rem 1.5rem 1.25rem;
+      width: 380px;
+      box-shadow: 0 0 60px #00000088;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+
+    .cluster-title {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: #444;
+      text-transform: uppercase;
+    }
+
+    .rssi-pill {
+      font-size: 11px;
+      color: #555;
+      background: #101012;
+      border: 0.5px solid #222226;
+      border-radius: 4px;
+      padding: 2px 10px;
+    }
+
+    .gauge-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    canvas#gauge {
+      display: block;
+    }
+
+    .leds-row {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .led-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .led-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #141416;
+      border: 1px solid #222;
+      transition: background 0.35s, box-shadow 0.35s;
+    }
+
+    .led-dot.ok {
+      background: #2dcf8a;
+      box-shadow: 0 0 10px #2dcf8a99, 0 0 3px #2dcf8a;
+      border-color: #1a6644;
+    }
+
+    .led-dot.fault {
+      background: #ff4f4f;
+      box-shadow: 0 0 10px #ff4f4f99, 0 0 3px #ff4f4f;
+      border-color: #882222;
+    }
+
+    .led-name {
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #444;
+    }
+
+    .led-item.ok   .led-name { color: #2dcf8a; }
+    .led-item.fault .led-name { color: #ff4f4f; }
+
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn-row { display: flex; gap: 6px; }
+
+    .dbtn {
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      padding: 5px 13px;
+      border-radius: 5px;
+      border: 0.5px solid #222226;
+      background: #111113;
+      color: #666;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .dbtn:hover { background: #1a1a1e; color: #aaa; }
+    .dbtn.live  { border-color: #1a6644; color: #2dcf8a; }
+
+    .conn-row {
+      font-size: 11px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #222;
+      flex-shrink: 0;
+    }
+
+    .dot.live {
+      background: #2dcf8a;
+      animation: blink 1.4s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .pkt-count { font-size: 10px; color: #333; }
+
+    .log-area {
+      background: #0a0a0c;
+      border: 0.5px solid #181820;
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      height: 90px;
+      overflow-y: auto;
+    }
+
+    .log-area::-webkit-scrollbar { width: 4px; }
+    .log-area::-webkit-scrollbar-track { background: transparent; }
+    .log-area::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+    .log-line { font-size: 10px; line-height: 1.85; color: #333; }
+    .log-line.ok    { color: #2dcf8a; }
+    .log-line.fault { color: #ff4f4f; }
+    .log-line.sys   { color: #444; }
+
+    .footer {
+      margin-top: 0.6rem;
+      font-size: 9px;
+      color: #2a2a2e;
+      text-align: center;
+      letter-spacing: 0.06em;
+    }
+  </style>
+</head>
+<body>
+
+<div class="cluster">
+  <div class="top-bar">
+    <span class="cluster-title">RFM69 · 915 MHz</span>
+    <span class="rssi-pill" id="rssi">RSSI —</span>
+  </div>
+
+  <div class="gauge-wrap">
+    <canvas id="gauge" width="300" height="300"></canvas>
+  </div>
+
+  <div class="leds-row" id="leds-row"></div>
+
+  <div class="bottom-bar">
+    <div class="btn-row">
+      <button class="dbtn" id="conn-btn" onclick="connectSerial()">Connect serial</button>
+      <button class="dbtn" id="demo-btn" onclick="toggleDemo()">Demo</button>
+    </div>
+    <div class="conn-row">
+      <span class="dot" id="dot"></span>
+      <span id="cstat">disconnected</span>
+    </div>
+    <span class="pkt-count" id="pkt">0 pkts</span>
+  </div>
+
+  <div class="log-area" id="log"></div>
+
+  <div class="footer">open in chrome or edge · baud 115200 · web serial api</div>
+</div>
+
+<script>
+  const SIGNALS = ["VSB_STATUS", "CANWD_STATUS", "RADIO_STATUS", "IMD_STATUS", "AMS_STATUS"];
+  const SHORT   = ["VSB", "CANWD", "RADIO", "IMD", "AMS"];
+  const state   = {};
+  SIGNALS.forEach(s => state[s] = "unknown");
+
+  const CX = 150, CY = 150, R = 118;
+  const START = Math.PI * 0.72;
+  const END   = Math.PI * 2.28;
+  const SPAN  = END - START;
+
+  let pktCount = 0, demoTimer = null, demoIdx = 0;
+  let port = null, reader = null;
+
+  function tickAngle(i) {
+    return START + (i / (SIGNALS.length - 1)) * SPAN;
+  }
+
+  function drawGauge() {
+    const c   = document.getElementById("gauge");
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, 300, 300);
+
+    // Outer bezel
+    ctx.beginPath();
+    ctx.arc(CX, CY, R + 14, 0, Math.PI * 2);
+    ctx.fillStyle = "#101012";
+    ctx.fill();
+    ctx.strokeStyle = "#252528";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Inner face
+    ctx.beginPath();
+    ctx.arc(CX, CY, R + 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#0c0c0e";
+    ctx.fill();
+
+    // Background arc track
+    ctx.beginPath();
+    ctx.arc(CX, CY, R - 4, START, END);
+    ctx.strokeStyle = "#1c1c20";
+    ctx.lineWidth = 10;
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    // Coloured arc segments
+    SIGNALS.forEach((sig, i) => {
+      const s  = state[sig];
+      if (s === "unknown") return;
+      const a0 = tickAngle(i) - SPAN / SIGNALS.length * 0.4;
+      const a1 = tickAngle(i) + SPAN / SIGNALS.length * 0.4;
+      ctx.beginPath();
+      ctx.arc(CX, CY, R - 4, a0, a1);
+      ctx.strokeStyle = s === "okay" ? "#2dcf8a" : "#ff4f4f";
+      ctx.lineWidth = 10;
+      ctx.lineCap = "butt";
+      ctx.stroke();
+    });
+
+    // Tick marks + labels
+    SIGNALS.forEach((sig, i) => {
+      const ang = tickAngle(i);
+      const s   = state[sig];
+      const col = s === "okay" ? "#2dcf8a" : s === "faulted" ? "#ff4f4f" : "#333";
+
+      // Major tick
+      const t0x = CX + (R - 14) * Math.cos(ang);
+      const t0y = CY + (R - 14) * Math.sin(ang);
+      const t1x = CX + (R + 2)  * Math.cos(ang);
+      const t1y = CY + (R + 2)  * Math.sin(ang);
+      ctx.beginPath(); ctx.moveTo(t0x, t0y); ctx.lineTo(t1x, t1y);
+      ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.stroke();
+
+      // Minor ticks between majors
+      if (i < SIGNALS.length - 1) {
+        for (let m = 1; m <= 3; m++) {
+          const ma  = tickAngle(i) + (SPAN / (SIGNALS.length - 1)) * m / 4;
+          const mx0 = CX + (R - 8) * Math.cos(ma);
+          const my0 = CY + (R - 8) * Math.sin(ma);
+          const mx1 = CX + (R + 1) * Math.cos(ma);
+          const my1 = CY + (R + 1) * Math.sin(ma);
+          ctx.beginPath(); ctx.moveTo(mx0, my0); ctx.lineTo(mx1, my1);
+          ctx.strokeStyle = "#252528"; ctx.lineWidth = 1; ctx.stroke();
+        }
+      }
+
+      // Label outside arc
+      const lx = CX + (R + 22) * Math.cos(ang);
+      const ly = CY + (R + 22) * Math.sin(ang);
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(ang - Math.PI / 2);
+      ctx.font = "bold 9px 'Courier New', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = col;
+      ctx.fillText(SHORT[i], 0, 0);
+      ctx.restore();
+    });
+
+    // Center face circle
+    ctx.beginPath();
+    ctx.arc(CX, CY, 54, 0, Math.PI * 2);
+    ctx.fillStyle = "#0e0e10";
+    ctx.fill();
+    ctx.strokeStyle = "#1e1e24";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Center status text
+    const nOk    = SIGNALS.filter(s => state[s] === "okay").length;
+    const nFault = SIGNALS.filter(s => state[s] === "faulted").length;
+    const nUnk   = SIGNALS.filter(s => state[s] === "unknown").length;
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (nUnk === SIGNALS.length) {
+      ctx.font = "11px 'Courier New', monospace";
+      ctx.fillStyle = "#333";
+      ctx.fillText("WAITING", CX, CY);
+    } else if (nFault > 0) {
+      ctx.font = "bold 13px 'Courier New', monospace";
+      ctx.fillStyle = "#ff4f4f";
+      ctx.fillText("FAULT", CX, CY - 8);
+      ctx.font = "10px 'Courier New', monospace";
+      ctx.fillStyle = "#ff4f4f88";
+      ctx.fillText(nFault + " signal" + (nFault > 1 ? "s" : ""), CX, CY + 10);
+    } else {
+      ctx.font = "bold 13px 'Courier New', monospace";
+      ctx.fillStyle = "#2dcf8a";
+      ctx.fillText("ALL OK", CX, CY - 8);
+      ctx.font = "10px 'Courier New', monospace";
+      ctx.fillStyle = "#2dcf8a88";
+      ctx.fillText(nOk + " / " + SIGNALS.length, CX, CY + 10);
+    }
+
+    // Needles
+    SIGNALS.forEach((sig, i) => {
+      const s = state[sig];
+      if (s === "unknown") return;
+      const ang  = tickAngle(i);
+      const col  = s === "okay" ? "#2dcf8a" : "#ff4f4f";
+      const nLen = R - 20;
+      ctx.save();
+      ctx.translate(CX, CY);
+      ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -nLen);
+      ctx.strokeStyle = col + "55";
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = "round";
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -nLen + 4, 3, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // Center pivot
+    ctx.beginPath();
+    ctx.arc(CX, CY, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#333";
+    ctx.fill();
+  }
+
+  function buildLEDs() {
+    const row = document.getElementById("leds-row");
+    SIGNALS.forEach((sig, i) => {
+      const item = document.createElement("div");
+      item.className = "led-item";
+      item.id = "led-item-" + sig;
+      item.innerHTML = `<div class="led-dot" id="led-${sig}"></div><div class="led-name">${SHORT[i]}</div>`;
+      row.appendChild(item);
+    });
+  }
+
+  function updateSignal(sig, status) {
+    state[sig] = status;
+    const dot  = document.getElementById("led-" + sig);
+    const item = document.getElementById("led-item-" + sig);
+    if (!dot) return;
+    dot.className  = "led-dot "  + (status === "okay" ? "ok" : status === "faulted" ? "fault" : "");
+    item.className = "led-item " + (status === "okay" ? "ok" : status === "faulted" ? "fault" : "");
+    drawGauge();
+  }
+
+  function addLog(msg, cls) {
+    const box = document.getElementById("log");
+    const ts  = new Date().toTimeString().slice(0, 8);
+    const d   = document.createElement("div");
+    d.className = "log-line " + (cls || "");
+    d.textContent = `[${ts}]  ${msg}`;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+    while (box.children.length > 120) box.removeChild(box.firstChild);
+  }
+
+  function parseMsg(msg) {
+    const m = msg.match(/^(\w+_STATUS)\s+(okay|faulted)$/);
+    if (m && SIGNALS.includes(m[1])) {
+      updateSignal(m[1], m[2]);
+      pktCount++;
+      document.getElementById("pkt").textContent = pktCount + " pkts";
+      addLog(msg, m[2] === "faulted" ? "fault" : "ok");
+    }
+  }
+
+  function parseLine(line) {
+    line = line.trim();
+    if (line.startsWith("Received")) {
+      const m = line.match(/\]: (.+)/);
+      if (m) parseMsg(m[1].trim());
+    } else if (line.startsWith("RSSI:")) {
+      document.getElementById("rssi").textContent = "RSSI " + line.replace("RSSI:", "").trim() + " dBm";
+    } else if (/^\w+_STATUS\s+(okay|faulted)$/.test(line)) {
+      parseMsg(line);
+    }
+  }
+
+  async function connectSerial() {
+    if (!("serial" in navigator)) {
+      addLog("Web Serial not supported — use Chrome or Edge.", "fault");
+      return;
+    }
+    try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      const btn = document.getElementById("conn-btn");
+      btn.textContent = "Disconnect";
+      btn.classList.add("live");
+      btn.onclick = disconnectSerial;
+      document.getElementById("dot").className = "dot live";
+      document.getElementById("cstat").textContent = "connected";
+      addLog("Serial port opened at 115200 baud.", "sys");
+      const dec = new TextDecoderStream();
+      port.readable.pipeTo(dec.writable);
+      reader = dec.readable.getReader();
+      let buf = "";
+      (async () => {
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += value;
+            const lines = buf.split("\n");
+            buf = lines.pop();
+            lines.forEach(l => { if (l.trim()) parseLine(l); });
+          }
+        } catch (e) {
+          addLog("Read error: " + e.message, "fault");
+        }
+      })();
+    } catch (e) {
+      addLog("Connect error: " + e.message, "fault");
+    }
+  }
+
+  async function disconnectSerial() {
+    if (reader) { try { await reader.cancel(); } catch (e) {} reader = null; }
+    if (port)   { try { await port.close();   } catch (e) {} port   = null; }
+    const btn = document.getElementById("conn-btn");
+    btn.textContent = "Connect serial";
+    btn.classList.remove("live");
+    btn.onclick = connectSerial;
+    document.getElementById("dot").className = "dot";
+    document.getElementById("cstat").textContent = "disconnected";
+    addLog("Disconnected.", "sys");
+  }
+
+  const demoSeq = [
+    "VSB_STATUS okay", "CANWD_STATUS okay", "RADIO_STATUS okay", "IMD_STATUS okay", "AMS_STATUS okay",
+    "IMD_STATUS faulted", "AMS_STATUS faulted", "VSB_STATUS faulted",
+    "IMD_STATUS okay", "VSB_STATUS okay", "AMS_STATUS okay",
+    "CANWD_STATUS faulted", "RADIO_STATUS faulted", "CANWD_STATUS okay", "RADIO_STATUS okay"
+  ];
+
+  function toggleDemo() {
+    const btn = document.getElementById("demo-btn");
+    if (demoTimer) {
+      clearInterval(demoTimer); demoTimer = null;
+      btn.classList.remove("live");
+      document.getElementById("dot").className = "dot";
+      document.getElementById("cstat").textContent = "disconnected";
+      addLog("Demo stopped.", "sys");
+      return;
+    }
+    btn.classList.add("live");
+    document.getElementById("dot").className = "dot live";
+    document.getElementById("cstat").textContent = "demo";
+    addLog("Demo mode active.", "sys");
+    demoTimer = setInterval(() => {
+      parseMsg(demoSeq[demoIdx % demoSeq.length]);
+      document.getElementById("rssi").textContent = "RSSI " + (-55 - Math.floor(Math.random() * 35)) + " dBm";
+      demoIdx++;
+    }, 900);
+  }
+
+  buildLEDs();
+  drawGauge();
+  addLog("Instrument cluster ready. Connect serial or run demo.", "sys");
+</script>
+
+</body>
+</html>
