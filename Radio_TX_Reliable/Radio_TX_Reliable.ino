@@ -30,7 +30,7 @@ const uint8_t NUM_PINS = 5;
 const uint8_t sensePins[NUM_PINS] = {A0, A1, A2, A3, A4};
 
 const float VREF = 5.0f;
-const float THRESHOLD_V = 1.0f;
+const float THRESHOLD_V = 1.5f;
 
 // Track last status so we only send on change
 bool lastFault[NUM_PINS] = {false, false, false, false, false};

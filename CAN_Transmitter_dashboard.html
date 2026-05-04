@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Digital Dash Display</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{
+      background:#050506;
+      display:flex;align-items:center;justify-content:center;
+      min-height:100vh;
+      font-family:'Courier New',Courier,monospace;
+    }
+    .cluster{
+      background:#080809;
+      border:0.5px solid #1e1e22;
+      border-radius:20px;
+      padding:1.75rem 1.5rem 1.25rem;
+      width:620px;
+      box-shadow:0 0 60px #00000099;
+    }
+
+    /* ── Header ── */
+    .top-bar{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:1rem;
+    }
+    .cluster-title{
+      font-size:13px;letter-spacing:.16em;color:#cc2222;
+      text-transform:uppercase;font-weight:bold;
+    }
+    .pill-row{display:flex;gap:8px;}
+    .pill{
+      font-size:11px;color:#555;
+      background:#101012;border:.5px solid #222226;
+      border-radius:4px;padding:2px 10px;
+      display:flex;align-items:center;gap:6px;
+    }
+    .pill-label{color:#333;font-size:9px;letter-spacing:.08em;text-transform:uppercase;}
+    .pill-value{color:#666;}
+
+    /* ── Gauge area ── */
+    .gauge-area{
+      position:relative;
+      width:580px;height:580px;
+      margin:0 auto 1rem;
+    }
+    #gauge-svg{
+      position:absolute;top:60px;left:60px;
+      width:460px;height:460px;
+      filter:invert(1) brightness(0.55) sepia(1) hue-rotate(200deg) saturate(0.3);
+      opacity:0.85;pointer-events:none;
+    }
+    .gauge-area canvas{
+      position:absolute;top:0;left:0;pointer-events:none;
+    }
+
+    /* ── Indicator node ── */
+    .ind-node{
+      position:absolute;width:62px;height:66px;
+      transform:translate(-50%,-50%);
+      display:flex;flex-direction:column;align-items:center;
+      justify-content:flex-start;gap:0px;
+      background:#141416;border:1px solid #252528;
+      border-radius:10px;padding:5px 4px 4px;
+      transition:background .35s,border-color .35s,box-shadow .35s;
+    }
+    .ind-node.ok   {background:#0d2e1f;border-color:#1a6644;box-shadow:0 0 10px #2dcf8a33;}
+    .ind-node.fault{background:#2e0d0d;border-color:#882222;box-shadow:0 0 10px #ff4f4f33;}
+
+    .ind-led{
+      width:8px;height:8px;border-radius:50%;
+      background:#252528;border:1px solid #333;
+      flex-shrink:0;margin-bottom:3px;
+      transition:background .35s,box-shadow .35s;
+    }
+    .ind-node.ok    .ind-led{background:#2dcf8a;box-shadow:0 0 6px #2dcf8aaa;border-color:#1a6644;}
+    .ind-node.fault .ind-led{background:#ff4f4f;box-shadow:0 0 6px #ff4f4faa;border-color:#882222;}
+
+    .ind-icon{
+      font-size:18px;color:#2a2a2e;line-height:1;
+      margin-bottom:3px;transition:color .35s;
+    }
+    .ind-node.ok    .ind-icon{color:#2dcf8a;}
+    .ind-node.fault .ind-icon{color:#ff4f4f;}
+
+    .ind-label{
+      font-size:7.5px;letter-spacing:.07em;text-transform:uppercase;
+      color:#444;text-align:center;line-height:1.2;transition:color .35s;
+    }
+    .ind-node.ok    .ind-label{color:#2dcf8a;}
+    .ind-node.fault .ind-label{color:#ff4f4f;}
+
+    /* ── TSSI2: flash red LED on fault, off when OK ── */
+    @keyframes flash-red{
+      0%,49%  {background:#ff4f4f;box-shadow:0 0 8px #ff4f4faa;border-color:#882222;}
+      50%,100%{background:#252528;box-shadow:none;border-color:#333;}
+    }
+    .ind-node.fault-flash{
+      background:#2e0d0d;border-color:#882222;box-shadow:0 0 10px #ff4f4f33;
+    }
+    .ind-node.fault-flash .ind-led{
+      animation:flash-red 1s steps(1) infinite;
+    }
+    .ind-node.fault-flash .ind-icon{color:#ff4f4f;}
+    .ind-node.fault-flash .ind-label{color:#ff4f4f;}
+
+    /* ── Bottom controls ── */
+    .bottom-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;}
+    .btn-row{display:flex;gap:6px;}
+    .dbtn{
+      font-size:11px;font-family:'Courier New',monospace;
+      padding:5px 13px;border-radius:5px;
+      border:.5px solid #222226;background:#111113;color:#666;
+      cursor:pointer;transition:background .2s,color .2s;
+    }
+    .dbtn:hover{background:#1a1a1e;color:#aaa;}
+    .dbtn.live{border-color:#1a6644;color:#2dcf8a;}
+    .conn-row{font-size:11px;color:#333;display:flex;align-items:center;gap:6px;margin-left:auto;}
+    .dot{width:6px;height:6px;border-radius:50%;background:#222;flex-shrink:0;}
+    .dot.live{background:#2dcf8a;animation:blink 1.4s infinite;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+    .log-area{
+      background:#0a0a0c;border:.5px solid #181820;
+      border-radius:6px;padding:.5rem .75rem;
+      height:88px;overflow-y:auto;
+    }
+    .log-area::-webkit-scrollbar{width:4px;}
+    .log-area::-webkit-scrollbar-thumb{background:#222;border-radius:2px;}
+    .log-line{font-size:10px;line-height:1.85;color:#555;}
+    .footer{margin-top:.6rem;font-size:9px;color:#2a2a2e;text-align:center;letter-spacing:.06em;}
+  </style>
+</head>
+<body>
+<div class="cluster">
+
+  <!-- ── Header ── -->
+  <div class="top-bar">
+    <span class="cluster-title">Digital Dash Display</span>
+    <div class="pill-row">
+      <div class="pill">
+        <span class="pill-label">Counter</span>
+        <span class="pill-value" id="counter-val">—</span>
+      </div>
+      <div class="pill">
+        <span class="pill-label">Button</span>
+        <span class="pill-value" id="button-val">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Gauge ── -->
+  <div class="gauge-area" id="gauge-area">
+
+    <svg id="gauge-svg"
+       viewBox="0 0 97.778999 97.779381"
+       xmlns:xlink="http://www.w3.org/1999/xlink"
+       xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="swatch3" x1="0" x2="0" y1="0" y2="1">
+          <stop style="stop-color:#000000;stop-opacity:1;" offset="0"/>
+        </linearGradient>
+      </defs>
+      <g transform="translate(-54.891421,-12.747844)">
+        <ellipse style="fill:none;stroke:#888;stroke-width:3.865;" cx="103.78092" cy="61.637535" rx="46.957001" ry="46.957191"/>
+        <circle  style="fill:none;stroke:#888;stroke-width:1.665;" cx="103.78092" cy="61.637535" r="4.2380137"/>
+        <path    style="fill:#aaa;stroke:#888;stroke-width:1.27169;" d="M 107.20694,52.048211 81.402829,99.807598 82.028439,100.1696 110.57618,53.997771 Z"/>
+        <rect id="rect4" style="fill:#888;stroke:#888;stroke-width:0.894094;" width="7.2556415" height="1.34372" x="59.426174" y="60.965675"/>
+        <use xlink:href="#rect4" transform="rotate(30,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(60,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(90,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(120,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(150,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(180,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(-150,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(-120,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(-60,103.86606,61.595154)"/>
+        <use xlink:href="#rect4" transform="rotate(-30,103.86606,61.595154)"/>
+        <rect id="use59" style="fill:#888;stroke:#888;stroke-width:0.798061;" width="1.9984616" height="1.4247704" x="59.378159" y="60.91766"/>
+        <use xlink:href="#use59" transform="rotate(15,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(45,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(75,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(105,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(135,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(165,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(-165,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(-135,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(-45,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(-30,103.81125,61.662363)"/>
+        <use xlink:href="#use59" transform="rotate(-15,103.81125,61.662363)"/>
+      </g>
+    </svg>
+
+    <canvas id="gauge" width="580" height="580"></canvas>
+    <!-- indicator nodes injected by JS -->
+  </div>
+
+  <!-- ── Controls ── -->
+  <div class="bottom-bar">
+    <div class="btn-row">
+      <button class="dbtn" id="conn-btn" onclick="connectSerial()">Connect serial</button>
+      <button class="dbtn" id="demo-btn" onclick="toggleDemo()">Demo</button>
+    </div>
+    <div class="conn-row"><span class="dot" id="dot"></span><span id="cstat">disconnected</span></div>
+  </div>
+
+  <div class="log-area" id="log"></div>
+  <div class="footer">open in chrome or edge &nbsp;·&nbsp; baud 115200 &nbsp;·&nbsp; web serial api</div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────
+const SIGNALS = ["VSB_STATUS","CANWD_STATUS","RADIO_STATUS","IMD_STATUS","AMS_STATUS"];
+const state   = {VSB_STATUS:"unknown",CANWD_STATUS:"unknown",RADIO_STATUS:"unknown",IMD_STATUS:"unknown",AMS_STATUS:"unknown"};
+
+// 7 indicators. Index 5 = TSSI (green OK / dark fault). Index 6 = TSSI2 (dark OK / flash-red fault).
+const INDICATORS = [
+  {key:"TSSI",         label:"TSSI",  iconClass:"fa-regular fa-lightbulb"},  // outline — lit green when OK
+  {key:"CANWD_STATUS", label:"CAN",   iconClass:"fa-solid fa-dog"},
+  {key:"RADIO_STATUS", label:"RADIO", iconClass:"fa-solid fa-radio"},
+  {key:"IMD_STATUS",   label:"IMD",   iconClass:"fa-solid fa-bolt-lightning"},
+  {key:"AMS_STATUS",   label:"AMS",   iconClass:"fa-solid fa-car-battery"},
+  {key:"VSB_STATUS",   label:"VSB",   iconClass:"fa-regular fa-circle-play"},
+  {key:"TSSI2",        label:"TSSI",  iconClass:"fa-solid fa-lightbulb"},    // solid   — flashes red when fault
+];
+
+// ── Geometry ────────────────────────────────────────────────────────
+const W=580, H=580, CX=290, CY=290;
+const GAUGE_R  = 220;
+const NODE_R   = 280;
+const START_DEG = 130, END_DEG = 410;
+const SPAN_DEG  = END_DEG - START_DEG;
+
+function deg2rad(d){return d*Math.PI/180;}
+function indAngle(i){return deg2rad(START_DEG + (i/(INDICATORS.length-1))*SPAN_DEG);}
+
+// ── Build indicator HTML nodes ───────────────────────────────────────
+function buildNodes(){
+  const area = document.getElementById("gauge-area");
+  INDICATORS.forEach((ind,i)=>{
+    const ang = indAngle(i);
+    const px  = CX + NODE_R*Math.cos(ang);
+    const py  = CY + NODE_R*Math.sin(ang);
+
+    const nodeId = i===6 ? "node-TSSI2" : "node-"+ind.key;
+    const ledId  = i===6 ? "led-TSSI2"  : "led-"+ind.key;
+
+    const node = document.createElement("div");
+    node.className = "ind-node";
+    node.id = nodeId;
+    node.style.left = px+"px";
+    node.style.top  = py+"px";
+
+    node.innerHTML = `
+      <div class="ind-led" id="${ledId}"></div>
+      <i class="ind-icon ${ind.iconClass}"></i>
+      <div class="ind-label">${ind.label}</div>
+    `;
+    area.appendChild(node);
+  });
+}
+
+// ── Canvas: arc segments + connector lines (NO needles) ─────────────
+const ARC_R = 242; // outside the SVG ring (GAUGE_R=220)
+function drawGauge(){
+  const canvas = document.getElementById("gauge");
+  const ctx    = canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+
+  const segHalf = deg2rad(SPAN_DEG/INDICATORS.length*0.42);
+
+  INDICATORS.forEach((ind,i)=>{
+    const key = i===6 ? "TSSI2" : ind.key;
+    const s   = getStatus(key);
+    if(s==="unknown") return;
+    const mid = indAngle(i);
+
+    // TSSI (index 0): green=ok, no arc when faulted (outline bulb — lit when good)
+    // TSSI2 (index 6): red=faulted, no arc when ok (solid bulb — lit when fault)
+    let arcColor = null;
+    if(i===0){
+      arcColor = s==="okay" ? "#2dcf8a" : null;
+    } else if(i===6){
+      arcColor = s==="faulted" ? "#ff4f4f" : null;
+    } else {
+      arcColor = s==="okay" ? "#2dcf8a" : "#ff4f4f";
+    }
+    if(!arcColor) return;
+
+    // Glow arc (outside the ring)
+    ctx.beginPath();
+    ctx.arc(CX,CY,ARC_R, mid-segHalf, mid+segHalf);
+    ctx.strokeStyle = arcColor+"44";
+    ctx.lineWidth=14; ctx.lineCap="butt"; ctx.stroke();
+    // Bright edge
+    ctx.beginPath();
+    ctx.arc(CX,CY,ARC_R, mid-segHalf, mid+segHalf);
+    ctx.strokeStyle = arcColor;
+    ctx.lineWidth=3; ctx.lineCap="butt"; ctx.stroke();
+
+    // Connector line arc → node
+    const ang = indAngle(i);
+    ctx.beginPath();
+    ctx.moveTo(CX+(ARC_R+8)*Math.cos(ang), CY+(ARC_R+8)*Math.sin(ang));
+    ctx.lineTo(CX+(NODE_R-38)*Math.cos(ang), CY+(NODE_R-38)*Math.sin(ang));
+    ctx.strokeStyle=arcColor; ctx.lineWidth=1.5; ctx.lineCap="round"; ctx.stroke();
+  });
+}
+
+// ── Status helpers ───────────────────────────────────────────────────
+function getTSSIStatus(){
+  const a=state["AMS_STATUS"], m=state["IMD_STATUS"];
+  if(a==="unknown"||m==="unknown") return "unknown";
+  return (a==="okay"&&m==="okay") ? "okay" : "faulted";
+}
+function getStatus(key){
+  if(key==="TSSI"||key==="TSSI2") return getTSSIStatus();
+  return state[key]||"unknown";
+}
+
+function refreshNode(key){
+  const s = getStatus(key);
+  if(key==="TSSI"){
+    // Green when OK, plain/dark when faulted
+    const node = document.getElementById("node-TSSI");
+    if(node) node.className = "ind-node" + (s==="okay" ? " ok" : "");
+  } else if(key==="TSSI2"){
+    // Dark/off when OK, flashing red when faulted
+    const node = document.getElementById("node-TSSI2");
+    if(node) node.className = "ind-node" + (s==="faulted" ? " fault-flash" : "");
+  } else {
+    const node = document.getElementById("node-"+key);
+    if(node) node.className = "ind-node" + (s==="okay" ? " ok" : s==="faulted" ? " fault" : "");
+  }
+}
+
+function updateSignal(sig,status){
+  state[sig]=status;
+  refreshNode(sig);
+  refreshNode("TSSI");
+  refreshNode("TSSI2");
+  drawGauge();
+}
+
+// ── Logging ──────────────────────────────────────────────────────────
+function addLog(msg){
+  const box=document.getElementById("log");
+  const ts=new Date().toTimeString().slice(0,8);
+  const d=document.createElement("div");
+  d.className="log-line";
+  d.textContent=`[${ts}]  ${msg}`;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+  while(box.children.length>120) box.removeChild(box.firstChild);
+}
+
+// ── Parsing ──────────────────────────────────────────────────────────
+let pktCount=0;
+
+function parseLine(line){
+  line=line.trim();
+
+  // Match: "CAN Message Payload: XX XX XX XX XX XX XX"
+  const m = line.match(/CAN Message Payload:\s*([0-9A-Fa-f]{2}(?:\s+[0-9A-Fa-f]{2}){6})/);
+  if(!m) return;
+
+  const bytes = m[1].split(/\s+/).map(h=>parseInt(h,16));
+  const [counter, button, imd, ams, canwd, vsb, radio] = bytes;
+
+  // Counter
+  document.getElementById("counter-val").textContent = counter;
+
+  // Button: 0xAA = not pressed, 0x55 = pressed
+  document.getElementById("button-val").textContent = (button===0x55) ? "PRESSED" : "—";
+
+  // Signal map: byte value → status
+  const decode = v => v===0xAA ? "okay" : v===0x55 ? "faulted" : null;
+
+  const updates = [
+    ["IMD_STATUS",    decode(imd)],
+    ["AMS_STATUS",    decode(ams)],
+    ["CANWD_STATUS",  decode(canwd)],
+    ["VSB_STATUS",    decode(vsb)],
+    ["RADIO_STATUS",  decode(radio)],
+  ];
+
+  let anyFault = false;
+  updates.forEach(([sig, status])=>{
+    if(status){
+      state[sig]=status;
+      refreshNode(sig);
+      if(status==="faulted") anyFault=true;
+    }
+  });
+  refreshNode("TSSI");
+  refreshNode("TSSI2");
+  drawGauge();
+
+  pktCount++;
+  addLog(`CAN Message Payload: ${m[1].toUpperCase()}`);
+}
+
+// ── Web Serial ───────────────────────────────────────────────────────
+let port=null,reader=null;
+async function connectSerial(){
+  if(!("serial" in navigator)){addLog("Web Serial not supported — use Chrome or Edge.");return;}
+  try{
+    port=await navigator.serial.requestPort();
+    await port.open({baudRate:115200});
+    const btn=document.getElementById("conn-btn");
+    btn.textContent="Disconnect";btn.classList.add("live");btn.onclick=disconnectSerial;
+    document.getElementById("dot").className="dot live";
+    document.getElementById("cstat").textContent="connected";
+    addLog("Serial port opened at 115200 baud.");
+    const dec=new TextDecoderStream();
+    port.readable.pipeTo(dec.writable);
+    reader=dec.readable.getReader();
+    let buf="";
+    (async()=>{
+      try{
+        while(true){
+          const{value,done}=await reader.read();if(done)break;
+          buf+=value;const lines=buf.split("\n");buf=lines.pop();
+          lines.forEach(l=>{if(l.trim())parseLine(l);});
+        }
+      }catch(e){addLog("Read error: "+e.message);}
+    })();
+  }catch(e){addLog("Connect error: "+e.message);}
+}
+async function disconnectSerial(){
+  if(reader){try{await reader.cancel();}catch(e){}reader=null;}
+  if(port){try{await port.close();}catch(e){}port=null;}
+  const btn=document.getElementById("conn-btn");
+  btn.textContent="Connect serial";btn.classList.remove("live");btn.onclick=connectSerial;
+  document.getElementById("dot").className="dot";
+  document.getElementById("cstat").textContent="disconnected";
+  addLog("Disconnected.");
+}
+
+// ── Demo ─────────────────────────────────────────────────────────────
+let demoTimer=null,demoIdx=0,demoCounter=0;
+// Each entry: [counter, button, imd, ams, canwd, vsb, radio]
+// 0xAA=ok, 0x55=faulted; button 0xAA=not pressed, 0x55=pressed
+const demoSeq=[
+  [0,  0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA], // all ok
+  [1,  0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA],
+  [2,  0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA], // button pressed
+  [3,  0xAA, 0x55, 0xAA, 0xAA, 0xAA, 0xAA], // IMD fault
+  [4,  0xAA, 0x55, 0x55, 0xAA, 0xAA, 0xAA], // IMD+AMS fault
+  [5,  0xAA, 0x55, 0x55, 0xAA, 0x55, 0xAA], // +VSB fault
+  [6,  0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0xAA], // VSB only
+  [7,  0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA], // all ok
+  [8,  0xAA, 0xAA, 0xAA, 0x55, 0xAA, 0xAA], // CAN fault
+  [9,  0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x55], // Radio fault
+  [10, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA], // all ok
+];
+function toggleDemo(){
+  const btn=document.getElementById("demo-btn");
+  if(demoTimer){
+    clearInterval(demoTimer);demoTimer=null;
+    btn.classList.remove("live");
+    document.getElementById("dot").className="dot";
+    document.getElementById("cstat").textContent="disconnected";
+    addLog("Demo stopped.");return;
+  }
+  btn.classList.add("live");
+  document.getElementById("dot").className="dot live";
+  document.getElementById("cstat").textContent="demo";
+  addLog("Demo mode active.");
+  demoTimer=setInterval(()=>{
+    const entry = demoSeq[demoIdx%demoSeq.length];
+    const hex = entry.map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
+    parseLine(`CAN Message Payload: ${hex}`);
+    demoIdx++;
+  },900);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+buildNodes();
+drawGauge();
+addLog("Instrument cluster ready. Connect serial or run demo.");
+</script>
+</body>
+</html>
